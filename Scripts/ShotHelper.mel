@@ -1,0 +1,287 @@
+global proc OpenShotHelper()
+{
+    global string $shotHelperWindow;
+    global string $shotHelperDocker;
+    global string $shotHelperScroll;
+    global string $shotHelperColumn;
+
+    global string $shotHelperDir;
+
+    global string $shotNumBox;
+    global string $camNumBox;
+    global string $activeCameraOption;
+    global string $compositionImage;
+
+    if(`dockControl -ex "shotHelperDocker"`)
+    {
+        deleteUI $shotHelperColumn;
+    }
+    else
+    {
+        $shotHelperWindow = `window`;
+        $shotHelperScroll = `scrollLayout -horizontalScrollBarThickness 16 -verticalScrollBarThickness 16 -cr true`; 
+        $shotHelperDocker = `dockControl -ret false -area "left" -content $shotHelperWindow -label "Shot Helper" -allowedArea "all" shotHelperDocker`; 
+    }   
+           
+    $shotHelperColumn = `columnLayout -parent $shotHelperScroll -columnAttach "both" 5 -rowSpacing 3 -columnWidth 312 -adj false`; 
+    
+    string $dirPath = `whatIs "OpenShotHelper"`;
+    $dirPath = `substring $dirPath 25 (size($dirPath))`;
+    $dirPath = dirname($dirPath);
+    $shotHelperDir = dirname($dirPath);
+    
+    setCurrentRenderer "mayaHardware2";
+    setAttr hardwareRenderingGlobals.renderMode 4 ; //Shaded and Textured
+    setAttr "hardwareRenderingGlobals.lightingMode" 1; //all
+    colorManagementPrefs -edit -ote true;//Apply output transform to renderer
+    setAttr defaultResolution.width 1920;//Width of render output
+    setAttr defaultResolution.height 1080;//Height of render output
+
+    string $tmpRowLayout;
+
+    button -p $shotHelperColumn -label "REFRESH" -command "OpenShotHelper" -bgc 0.1 0.3 0.5;
+
+    separator -p $shotHelperColumn -h 20;
+    
+    $tmpRowLayout = `rowLayout -p $shotHelperColumn -nc 6`;
+    text -p $tmpRowLayout -l "           ";
+    text -p $tmpRowLayout -l "Shot No : ";
+    $shotNumBox = `intField -p $tmpRowLayout -width 50 -minValue 1 -maxValue 1000 -step 1 -value 1`;
+    text -p $tmpRowLayout -l "       ";
+    text -p $tmpRowLayout -l "Cam No :";
+    $camNumBox = `intField -p $tmpRowLayout -width 50 -minValue 1 -maxValue 100 -step 1 -value 1`;
+
+    button -p $shotHelperColumn -label "Create Camera Based on Shot, Cam numbers" -command "shCreateShotCamera" -bgc 0 0.4 0.4;
+    
+    separator -p $shotHelperColumn -h 20;
+    
+    $activeCameraOption = `optionMenu -p $shotHelperColumn -label "ActiveAnimCam : " -changeCommand "shCameraChanged"`;
+    shAddCameraList();
+    
+    separator -p $shotHelperColumn -h 20;
+
+    $tmpRowLayout = `rowLayout -p $shotHelperColumn -nc 2`;
+    button -p $tmpRowLayout -l "AnimCam" -command "shChangeViewToCam 0" -width 148 -bgc 0.2 0.2 0.4;
+    button -p $tmpRowLayout -l "PrespCam" -command "shChangeViewToCam 1" -width 148 -bgc 0.4 0.2 0.2;
+
+    separator -p $shotHelperColumn -h 20;
+
+    text -p $shotHelperColumn -l "OVERLAYS" -align "center";    
+    $dirPath = $shotHelperDir + "/OverlayIcons";
+    $tmpGridLayout = `rowColumnLayout -parent $shotHelperColumn -nc 4 -cs 1 15 -cs 2 6 -cs 3 6 -cs 4 6 -rs 2 6 -rs 3 6`;
+    symbolButton -p $tmpGridLayout -c "shChangeCamOverlay 0" -image ($dirPath +"/0.png") -w 62 -h 35;
+    symbolButton -p $tmpGridLayout -c "shChangeCamOverlay 1" -image ($dirPath +"/1.png") -w 62 -h 35;
+    symbolButton -p $tmpGridLayout -c "shChangeCamOverlay 2" -image ($dirPath +"/2.png") -w 62 -h 35;
+    symbolButton -p $tmpGridLayout -c "shChangeCamOverlay 3" -image ($dirPath +"/3.png") -w 62 -h 35;
+    symbolButton -p $tmpGridLayout -c "shChangeCamOverlay 4" -image ($dirPath +"/4.png") -w 62 -h 35;
+    symbolButton -p $tmpGridLayout -c "shChangeCamOverlay 5" -image ($dirPath +"/5.png") -w 62 -h 35;
+    symbolButton -p $tmpGridLayout -c "shChangeCamOverlay 6" -image ($dirPath +"/6.png") -w 62 -h 35;
+    symbolButton -p $tmpGridLayout -c "shChangeCamOverlay 7" -image ($dirPath +"/7.png") -w 62 -h 35;
+    symbolButton -p $tmpGridLayout -c "shChangeCamOverlay 8" -image ($dirPath +"/8.png") -w 62 -h 35;
+    symbolButton -p $tmpGridLayout -c "shChangeCamOverlay 9" -image ($dirPath +"/9.png") -w 62 -h 35;
+    symbolButton -p $tmpGridLayout -c "shChangeCamOverlay 10" -image ($dirPath +"/10.png") -w 62 -h 35;
+    symbolButton -p $tmpGridLayout -c "shChangeCamOverlay 11" -image ($dirPath +"/11.png") -w 62 -h 35;
+
+    separator -p $shotHelperColumn -h 20;
+    
+    text -p $shotHelperColumn -l "COMPOSITION REF" -align "center";
+    $tmpFrame = `frameLayout -p $shotHelperColumn -bv true -lv false`;
+    $compositionImage = `symbolButton -p $tmpFrame -c "OpenCompositionWindow" -image ($shotHelperDir + "/Compositions/Images/0.jpg") -w 300 -h 169`;
+    
+    separator -p $shotHelperColumn -h 10;
+    
+    text -p $shotHelperColumn -l "ANIM VIEW" -align "center";
+    $tmpFrame = `frameLayout -p $shotHelperColumn -bv true -lv false -w 300 -h 169`;
+    if(`modelEditor -q -ex "animCamView_me"`)
+    {
+        deleteUI "animCamView_me";
+    }
+    string $tmpCam = `optionMenu -q -v $activeCameraOption`;
+    if(size($tmpCam))
+    {
+        modelEditor -p $tmpFrame -cam $tmpCam "animCamView_me";
+    }
+    else
+    {
+        modelEditor -p $tmpFrame -cam "persp" "animCamView_me";
+    }    
+    modelEditor -e -da "smoothShaded" -m false -displayTextures on -allObjects 0 -polymeshes 1 -imagePlane 1 -nurbsSurfaces 1 -gr off -sel off -hud 0 "animCamView_me";
+
+
+}
+OpenShotHelper();
+
+global proc shCreateShotCamera()
+{
+    global string $shotNumBox;
+    global string $camNumBox;
+    global string $activeCameraOption;
+
+    $shNo = `intField -q -v $shotNumBox`;
+    $camNo = `intField -q -v $camNumBox`;
+
+    $camName = "AnimCam_sh" + $shNo + "_cam" + $camNo;
+
+    string $camera[] = `camera -n persp -hc "viewSet -p %camera"`;
+    viewSet -p $camera[0];
+    lookThroughModelPanel $camera[0] modelPanel4;
+    $finalName = `rename $camera[0] $camName`;
+
+    shAddCameraList();
+    optionMenu -e -v $finalName $activeCameraOption;
+    shCameraChanged();
+}
+
+global proc shAddCameraList()
+{
+    global string $activeCameraOption;
+
+    string $menus[] = `optionMenu -q -ill $activeCameraOption`;
+    string $menu;
+    for($menu in $menus)
+    {
+        deleteUI $menu;
+    }
+
+    string $cams[] = `listCameras`;
+    string $cam;
+    for($cam in $cams)
+    {
+        $match = `match "anim" (tolower($cam))`;
+        if($match == "anim")
+        {
+            menuItem -l $cam -p $activeCameraOption;
+        }
+    }
+}
+
+global proc shChangeViewToCam(int $val)
+{
+    global string $activeCameraOption;
+
+    string $cam = `optionMenu -q -v $activeCameraOption`;
+    if($val == 0)
+    {
+        if(size($cam))
+        {
+            lookThroughModelPanel $cam modelPanel4;
+        }
+    }
+    else
+    {
+        lookThroughModelPanel persp modelPanel4;
+    }
+}
+
+global proc shCameraChanged()
+{
+    global string $activeCameraOption;
+
+    string $cam = `optionMenu -q -v $activeCameraOption`;
+    modelEditor -e -cam $cam "animCamView_me";
+}
+
+global proc shChangeCamOverlay(int $overlayID)
+{
+    modelEditor -e -imagePlane 1 "modelPanel4";
+    global string $shotHelperDir;
+    global string $activeCameraOption;
+    string $cam = `optionMenu -q -v $activeCameraOption`;
+    if(size($cam))
+    {
+        string $plane;
+        $camShape = `listRelatives -s $cam`;
+        $planes = `listConnections -type "imagePlane" $camShape[0]`;
+        if(size($planes) == 0)
+        {            
+            imagePlane -c $cam;
+        }
+        $planes = `listConnections -type "imagePlane" $camShape[0]`;
+        $plane = $planes[0];
+        setAttr -type "string" ($plane+".imageName") ($shotHelperDir+"/Overlays/"+$overlayID+".png");
+        setAttr ($plane+".overrideEnabled") 1;
+        setAttr ($plane+".overrideDisplayType") 2;
+        setAttr ($plane+".depth") 1;
+    }
+    SelectNone;
+}
+
+global proc OpenCompositionWindow()
+{
+    global string $shotHelperDir;
+    string $categFilePath = $shotHelperDir + "/Compositions/Categs.txt";
+    string $imagesDir = $shotHelperDir + "/Compositions/Images";
+    string $images[];
+    
+    $images = `getFileList -folder $imagesDir`;
+    $images = shuffleArray($images);
+
+    //Window creation
+    window -title "Compositon references" -widthHeight 625 425;
+    string $shForm = `formLayout`;
+    string $shTabLayout = `tabLayout -innerMarginWidth 5 -innerMarginHeight 5`;
+    formLayout -edit -attachForm $shTabLayout "top" 0 -attachForm $shTabLayout "left" 0 -attachForm $shTabLayout "bottom" 0 -attachForm $shTabLayout "right" 0 $shForm;
+
+    //All
+    $shTmpScrollLayout = `scrollLayout -p $shTabLayout -verticalScrollBarThickness 16`;
+    $shTmpGridLayout = `rowColumnLayout -p $shTmpScrollLayout -nc 4`;
+    string $img;
+    for($img in $images)
+    {
+        symbolButton -p $shTmpGridLayout -c ("ChangeCompRef "+$img) -image ($imagesDir +"/"+ $img) -w 150 -h 85;
+    }
+    tabLayout -e -tabLabel $shTmpScrollLayout "All" $shTabLayout;
+
+    //categs
+    string $nextLine;
+    int $fileId = `fopen $categFilePath "r"` ;
+    $nextLine = `fgetline $fileId` ;
+    while(size($nextLine) > 0)
+    {
+        string $buffer[];
+        clear $buffer;
+        tokenize $nextLine "-" $buffer;
+        string $categ = $buffer[0];
+
+        string $imgNos[];
+        clear $imgNos;
+        string $newBuff = `substring $buffer[1] 1 (size($buffer[1])-1) `;
+        tokenize $newBuff "," $imgNos;
+        $shTmpScrollLayout = `scrollLayout -p $shTabLayout -verticalScrollBarThickness 16`;
+        $shTmpGridLayout = `rowColumnLayout -p $shTmpScrollLayout -nc 4`;
+        $imgNos = shuffleArray($imgNos);
+        string $imgNo;
+        for($imgNo in $imgNos)
+        {
+            symbolButton -p $shTmpGridLayout -c ("ChangeCompRef "+$imgNo + ".jpg") -image ($imagesDir +"/"+ $imgNo + ".jpg") -w 150 -h 85;
+        }
+        tabLayout -e -tabLabel $shTmpScrollLayout $categ $shTabLayout;
+        $nextLine = `fgetline $fileId` ;
+    }
+    fclose $fileId ;
+
+    showWindow;
+}
+
+global proc ChangeCompRef(string $file)
+{    
+    global string $compositionImage;
+    global string $shotHelperDir;
+    string $imagesDir = $shotHelperDir + "/Compositions/Images";
+    symbolButton -e -image ($imagesDir +"/"+ $file) $compositionImage;
+}
+
+global proc string[] shuffleArray(string $array[])
+{
+ 	for ($i=0;$i<size($array);$i++)
+ 	{
+ 		int $index = rand(size($array));
+ 		string $tmp = $array[$i];
+ 		$array[$i] = $array[$index];
+ 		$array[$index] = $tmp;
+ 	}
+ 	return $array;
+}
+
+
+

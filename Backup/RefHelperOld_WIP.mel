@@ -1,0 +1,314 @@
+global proc OpenRefHelper()
+{
+    global string $refHelperWindow;
+    global string $refHelperDocker;
+    global string $refHelperScroll;
+    global string $refHelperColumn;
+
+    global string $refHelperDir;
+    global string $charList[];
+    global string $propList[];
+    global string $setList[];
+
+    clear $charList;
+    clear $propList;
+    clear $setList;
+
+    global string $episodeNameBox;
+    global string $activeEpisodeOption;
+    global string $charScroll;
+    global string $propScroll;
+    global string $setScroll;
+
+
+    if(`dockControl -ex "refHelperDocker"`)
+    {
+        deleteUI $refHelperColumn;
+    }
+    else
+    {
+        $refHelperWindow = `window`;
+        $refHelperScroll = `scrollLayout -horizontalScrollBarThickness 16 -verticalScrollBarThickness 16 -cr true`; 
+        $refHelperDocker = `dockControl -ret false -area "left" -content $refHelperWindow -label "Ref Helper" -allowedArea "all" refHelperDocker`; 
+    }   
+           
+    $refHelperColumn = `columnLayout -parent $refHelperScroll -columnAttach "both" 5 -rowSpacing 3 -columnWidth 312 -adj false`; 
+    
+    string $dirPath = `whatIs "OpenRefHelper"`;
+    $dirPath = `substring $dirPath 25 (size($dirPath))`;
+    $dirPath = dirname($dirPath);
+    $refHelperDir = dirname($dirPath);
+
+    string $tmpRowLayout;
+    
+    $tmpRowLayout = `rowLayout -p $refHelperColumn -nc 2`;
+    text -p $tmpRowLayout -l "  EpisodeName:  ";
+    $episodeNameBox = `textField -p $tmpRowLayout -width 208`;
+
+    button -p $refHelperColumn -label "Create New Episode" -command "rhCreateEpisode" -bgc 0 0.4 0.4;
+    
+    separator -p $refHelperColumn -h 20;
+    
+    $activeEpisodeOption = `optionMenu -p $refHelperColumn -label "ActiveEpisode : " -changeCommand "rhEpisodeChanged"`;
+    rhUpdateEpisodeList();
+    
+    separator -p $refHelperColumn -h 20;
+
+    $tmpRowLayout = `rowLayout -p $refHelperColumn -nc 4`;
+    text -p $tmpRowLayout -l "CHARACTER LIST:  " -align "left";
+    button -p $tmpRowLayout -label "ADD" -command "rhAddCharList" -bgc 0 0 0.4 -width 40;
+    button -p $tmpRowLayout -label "SUB" -command "rhSubCharList" -bgc 0.4 0 0 -width 40;
+    button -p $tmpRowLayout -label "ADD TO SCENE" -command "rhAddCharToScene" -bgc 0 0.4 0 -width 120;
+    $charScroll = `textScrollList -p $refHelperColumn -numberOfRows 11 -allowMultiSelection true`;
+
+    $tmpRowLayout = `rowLayout -p $refHelperColumn -nc 4`;
+    text -p $tmpRowLayout -l "PROP LIST:             " -align "left";
+    button -p $tmpRowLayout -label "ADD" -command "rhAddPropList" -bgc 0 0 0.4 -width 40;
+    button -p $tmpRowLayout -label "SUB" -command "rhSubPropList" -bgc 0.4 0 0 -width 40;
+    button -p $tmpRowLayout -label "ADD TO SCENE" -command "rhAddPropToScene" -bgc 0 0.4 0 -width 120;
+    $propScroll = `textScrollList -p $refHelperColumn -numberOfRows 10 -allowMultiSelection true`;
+
+    $tmpRowLayout = `rowLayout -p $refHelperColumn -nc 4`;
+    text -p $tmpRowLayout -l "SET LIST:                " -align "left";
+    button -p $tmpRowLayout -label "ADD" -command "rhAddSetList" -bgc 0 0 0.4 -width 40;
+    button -p $tmpRowLayout -label "SUB" -command "rhSubSetList" -bgc 0.4 0 0 -width 40;
+    button -p $tmpRowLayout -label "ADD TO SCENE" -command "rhAddSetToScene" -bgc 0 0.4 0 -width 120;
+    $setScroll = `textScrollList -p $refHelperColumn -numberOfRows 5 -allowMultiSelection true`;
+}
+OpenRefHelper();
+
+global proc rhUpdateEpisodeList()
+{
+
+}
+global proc rhCreateEpisode()
+{
+    global string $refHelperDir;
+    global string $activeEpisodeOption;
+    global string $episodeNameBox;
+
+    $epName = `textField -q -tx $episodeNameBox`;
+    string $filePath = $refHelperDir + "/Episodes/" + $epName;
+    int $fileId = `fopen $filePath "w"`;
+    string $fileData = "";
+
+    fprint $fileId $fileData ;
+    fclose $fileId ;
+}
+global proc rhEpisodeChanged()
+{
+    
+}
+global proc rhWriteToFile()
+{
+    global string $refHelperDir;
+    global string $activeEpisodeOption;
+    
+    global string $charList[];
+    global string $propList[];
+    global string $setList[];
+
+    $epName = `optionMenu -q -v $activeEpisodeOption`;
+    string $filePath = $refHelperDir + "/Episodes/" + $epName;
+    int $fileId = `fopen $filePath "w"`;
+    string $fileData = "";
+    string $ele;
+    for($ele in $charList)
+    {
+        $fileData += "1." + $ele + "\n";
+    }
+    for($ele in $propList)
+    {
+        $fileData += "2." + $ele + "\n";
+    }
+    for($ele in $setList)
+    {
+        $fileData += "3." + $ele + "\n";
+    }
+
+    fprint $fileId $fileData ;
+    fclose $fileId ;
+}
+
+//refresh procs
+global proc rhRefreshCharList()
+{
+    global string $charScroll;
+    global string $charList[];
+    textScrollList -e -ra $charScroll;
+    string $ele;
+    for($ele in $charList)
+    {
+        string $name =  basename( $ele, "" );
+        textScrollList -e -a $name  $charScroll;
+    }
+    rhWriteToFile();
+}
+global proc rhRefreshPropList()
+{    
+    global string $propScroll;
+    global string $propList[];
+    textScrollList -e -ra $propScroll;
+    string $ele;
+    for($ele in $propList)
+    {
+        string $name =  basename( $ele, "" );
+        textScrollList -e -a $name  $propScroll;
+    }
+}
+global proc rhRefreshSetList()
+{    
+    global string $setScroll;
+    global string $setList[];
+    textScrollList -e -ra $setScroll;
+    string $ele;
+    for($ele in $setList)
+    {
+        string $name =  basename( $ele, "" );
+        textScrollList -e -a $name  $setScroll;
+    }
+}
+//Add procs
+global proc rhAddCharList()
+{
+    global string $charList[];
+    $sels = `fileDialog2 -fileFilter "Maya Binary (*.mb);;Maya ASCII (*.ma)" -fm 4 -ds 2 -cap "Select Characters for the episode" -okc "Add to Char List" -cc "Cancel"`;
+    string $sel;
+    int $cnt = size($charList);
+    for($sel in $sels)
+    {
+        if(!stringArrayContains($sel, $charList))
+        {
+            $charList[$cnt] = $sel;
+            $cnt++;
+        }
+    }
+    rhRefreshCharList();
+}
+global proc rhAddPropList()
+{
+    global string $propList[];
+    $sels = `fileDialog2 -fileFilter "Maya Binary (*.mb);;Maya ASCII (*.ma)" -fm 4 -ds 2 -cap "Select Props for the episode" -okc "Add to Prop List" -cc "Cancel"`;
+    string $sel;
+    int $cnt = size($propList);
+    for($sel in $sels)
+    {
+        if(!stringArrayContains($sel, $propList))
+        {
+            $propList[$cnt] = $sel;
+            $cnt++;
+        }
+    }
+    rhRefreshPropList();
+}
+global proc rhAddSetList()
+{
+    global string $setList[];
+    $sels = `fileDialog2 -fileFilter "Maya Binary (*.mb);;Maya ASCII (*.ma)" -fm 4 -ds 2 -cap "Select Sets for the episode" -okc "Add to Set List" -cc "Cancel"`;
+    string $sel;
+    int $cnt = size($setList);
+    for($sel in $sels)
+    {
+        if(!stringArrayContains($sel, $setList))
+        {
+            $setList[$cnt] = $sel;
+            $cnt++;
+        }
+    }
+    rhRefreshSetList();
+}
+//sub procs
+global proc rhSubCharList()
+{
+    global string $charScroll;
+    global string $charList[];
+    $selIDs = `textScrollList -q -sii $charScroll`;
+    string $selsFull[];
+    string $selID;
+    int $cnt = 0;
+    for($selID in $selIDs)
+    {
+        $selsFull[$cnt] = $charList[(int)$selID - 1];
+        $cnt++;
+    }
+    $charList = stringArrayRemove($selsFull, $charList);
+    rhRefreshCharList();
+}
+global proc rhSubPropList()
+{
+    global string $propScroll;
+    global string $propList[];
+    $selIDs = `textScrollList -q -sii $propScroll`;
+    string $selsFull[];
+    string $selID;
+    int $cnt = 0;
+    for($selID in $selIDs)
+    {
+        $selsFull[$cnt] = $propList[(int)$selID - 1];
+        $cnt++;
+    }
+    $propList = stringArrayRemove($selsFull, $propList);
+    rhRefreshPropList();
+}
+global proc rhSubSetList()
+{
+    global string $setScroll;
+    global string $setList[];
+    $selIDs = `textScrollList -q -sii $setScroll`;
+    string $selsFull[];
+    string $selID;
+    int $cnt = 0;
+    for($selID in $selIDs)
+    {
+        $selsFull[$cnt] = $setList[(int)$selID - 1];
+        $cnt++;
+    }
+    $setList = stringArrayRemove($selsFull, $setList);
+    rhRefreshSetList();
+}
+//Add to scene Procs
+global proc rhAddCharToScene()
+{   
+    global string $charScroll;
+    global string $charList[];
+    $selIDs = `textScrollList -q -sii $charScroll`;
+    string $selID;
+    for($selID in $selIDs)
+    {
+        string $f = $charList[(int)$selID - 1];
+        file -r -ignoreVersion -gl -mergeNamespacesOnClash false -namespace (basenameEx($f)) -options "v=0;p=17;f=0" $f;
+    }
+}
+global proc rhAddPropToScene()
+{
+    global string $propScroll;
+    global string $propList[];
+    $selIDs = `textScrollList -q -sii $propScroll`;
+    string $selID;
+    for($selID in $selIDs)
+    {
+        string $f = $propList[(int)$selID - 1];
+        file -r -ignoreVersion -gl -mergeNamespacesOnClash false -namespace (basenameEx($f)) -options "v=0;p=17;f=0" $f;
+    }
+}
+global proc rhAddSetToScene()
+{
+    global string $setScroll;
+    global string $setList[];
+    $selIDs = `textScrollList -q -sii $setScroll`;
+    string $selID;
+    for($selID in $selIDs)
+    {
+        string $f = $setList[(int)$selID - 1];
+        file -r -ignoreVersion -gl -mergeNamespacesOnClash false -namespace (basenameEx($f)) -options "v=0;p=17;f=0" $f;
+    }
+}
+global proc int IsThereAnEpisode()
+{
+    $epName = `optionMenu -q -v $activeEpisodeOption`;
+    if(size($epName))
+    {
+        return 1;
+    }
+    return 0;
+}
